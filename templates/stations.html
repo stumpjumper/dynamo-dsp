@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dynamo DSP — Stations</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #1a1a1a; color: #e0e0e0;
+         padding: 1.2rem; max-width: 480px; }
+  h1 { font-size: 1.4rem; margin-bottom: 1.2rem; }
+  .back { display: inline-block; margin-bottom: 1rem; color: #4a9eff;
+          text-decoration: none; font-size: 0.9rem; }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;
+                   color: #666; margin-bottom: 0.75rem; }
+  hr { border: none; border-top: 1px solid #333; margin: 1rem 0; }
+
+  /* Station list */
+  .station-row { display: flex; align-items: center; gap: 0.5rem;
+                 padding: 0.5rem 0; border-bottom: 1px solid #252525; }
+  .station-row:last-child { border-bottom: none; }
+  .st-name { font-size: 0.9rem; font-weight: bold; min-width: 7rem; flex-shrink: 0; }
+  .st-url  { font-size: 0.72rem; color: #666; flex: 1; overflow: hidden;
+             text-overflow: ellipsis; white-space: nowrap; }
+  .btn-del { flex-shrink: 0; padding: 0.2rem 0.55rem; background: #3a1a1a;
+             color: #f44336; border: 1px solid #5a2a2a; border-radius: 4px;
+             cursor: pointer; font-size: 0.8rem; }
+  .btn-del:active { opacity: 0.7; }
+  .empty { color: #555; font-size: 0.85rem; padding: 0.5rem 0; }
+
+  /* Add form */
+  .field { margin-bottom: 0.8rem; }
+  .field label { display: block; font-size: 0.8rem; color: #888;
+                 margin-bottom: 0.3rem; }
+  .field input { width: 100%; padding: 0.5rem; background: #2a2a2a;
+                 border: 1px solid #444; color: #e0e0e0; border-radius: 4px;
+                 font-size: 0.95rem; }
+  .field input:focus { outline: none; border-color: #4a9eff; }
+  .btn-add { width: 100%; padding: 0.65rem; background: #4a9eff; color: #000;
+             border: none; border-radius: 6px; font-size: 1rem; cursor: pointer;
+             font-weight: bold; }
+  .btn-add:active { opacity: 0.8; }
+</style>
+</head>
+<body>
+<a class="back" href="/">← Back</a>
+<h1>Stations</h1>
+
+<div class="section-label">Current stations</div>
+{% if stations %}
+  {% for key, (name, url) in stations.items() %}
+  <div class="station-row">
+    <span class="st-name">{{ name }}</span>
+    <span class="st-url" title="{{ url }}">{{ url }}</span>
+    <form method="post" action="/stations/delete/{{ key }}" style="margin:0">
+      <button type="submit" class="btn-del">✕</button>
+    </form>
+  </div>
+  {% endfor %}
+{% else %}
+  <p class="empty">No stations configured.</p>
+{% endif %}
+
+<hr>
+<div class="section-label">Add station</div>
+<form method="post" action="/stations/add">
+  <div class="field">
+    <label>Name</label>
+    <input type="text" name="name" placeholder="WNYC 93.9" maxlength="60" required>
+  </div>
+  <div class="field">
+    <label>Stream URL</label>
+    <input type="url" name="url" placeholder="https://..." maxlength="500" required>
+  </div>
+  <button type="submit" class="btn-add">+ Add Station</button>
+</form>
+</body>
+</html>

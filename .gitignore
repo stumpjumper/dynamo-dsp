@@ -1,0 +1,5 @@
+stations.json
+__pycache__/
+*.pyc
+*.pid
+.env

@@ -1,0 +1,12 @@
+[Unit]
+Description=dynamo DSP web UI
+After=network.target
+
+[Service]
+User=USERNAME
+WorkingDirectory=/home/USERNAME/dynamo-dsp
+ExecStart=/usr/bin/python3 /home/USERNAME/dynamo-dsp/app.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

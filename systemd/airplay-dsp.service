@@ -1,0 +1,13 @@
+[Unit]
+Description=AirPlay DSP — loopback to headphone with TAP dynamics expansion
+After=sound.target shairport-sync.service
+Wants=shairport-sync.service
+
+[Service]
+ExecStart=/home/USERNAME/dynamo-dsp/airplay_dsp.sh
+Restart=on-failure
+RestartSec=3
+User=USERNAME
+
+[Install]
+WantedBy=multi-user.target

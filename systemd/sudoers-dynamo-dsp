@@ -1,0 +1,9 @@
+# /etc/sudoers.d/dynamo-dsp
+# Allows the dsp-ui Flask app to start/stop/restart the DSP service without a password.
+# Install: sudo cp systemd/sudoers-dynamo-dsp /etc/sudoers.d/dynamo-dsp
+#          sudo chmod 0440 /etc/sudoers.d/dynamo-dsp
+# Replace USERNAME with the user running dsp-ui.service.
+
+USERNAME ALL=(ALL) NOPASSWD: /bin/systemctl start airplay-dsp, \
+                              /bin/systemctl stop airplay-dsp, \
+                              /bin/systemctl restart airplay-dsp

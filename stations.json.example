@@ -1,0 +1,22 @@
+[
+  {
+    "key": "kafa",
+    "name": "KAFA 97.7",
+    "url": "https://ice9.securenetsystems.net/KAFA"
+  },
+  {
+    "key": "kexp",
+    "name": "KEXP 90.3",
+    "url": "https://kexp-mp3-128.streamguys1.com/kexp128.mp3"
+  },
+  {
+    "key": "wfuv",
+    "name": "WFUV 90.7",
+    "url": "http://wfuv-onair.streamguys.org/onair-hi"
+  },
+  {
+    "key": "wrek",
+    "name": "WREK 91.1",
+    "url": "http://streaming.wrek.org:8000/main/320kb.mp3"
+  }
+]
