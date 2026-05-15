@@ -4,6 +4,7 @@ import subprocess
 import re
 import os
 import signal
+import socket
 import threading
 import struct
 import math
@@ -17,7 +18,10 @@ _HERE         = os.path.dirname(os.path.abspath(__file__))
 SCRIPT        = os.environ.get('AIRPLAY_DSP_SCRIPT', os.path.join(_HERE, 'airplay_dsp.sh'))
 STATIONS_FILE = os.path.join(_HERE, 'stations.json')
 STREAM_TIMEOUT = 3600   # seconds before auto-stop
-PARAM_RE = re.compile(r'-el:tap_dynamics_st,([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+)')
+PARAM_RE  = re.compile(r'-el:tap_dynamics_st,([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+)')
+IAM_PORT  = 2868
+# copp indices for TAP Dynamics (St): [5-8] are read-only output ports, so writable params skip to 9,10
+IAM_PARAMS = [(1, 'attack'), (2, 'release'), (3, 'offset_gain'), (4, 'makeup_gain'), (9, 'stereo_mode'), (10, 'function')]
 
 DEFAULT_STATIONS = [
     ('kafa', 'KAFA 97.7',  'https://ice9.securenetsystems.net/KAFA'),
@@ -167,6 +171,23 @@ threading.Thread(target=timer_watchdog, daemon=True).start()
 
 # ── DSP / stream helpers ──────────────────────────────────────────────────────
 
+def _iam_set_params(attack, release, offset_gain, makeup_gain, stereo_mode, function):
+    vals = dict(attack=attack, release=release, offset_gain=offset_gain,
+                makeup_gain=makeup_gain, stereo_mode=stereo_mode, function=function)
+    cmds = ['c-select default', 'cop-select 1']
+    for idx, name in IAM_PARAMS:
+        cmds += [f'copp-select {idx}', f'copp-set {vals[name]}']
+    try:
+        with socket.socket() as s:
+            s.settimeout(2.0)
+            s.connect(('127.0.0.1', IAM_PORT))
+            s.sendall(('\r\n'.join(cmds) + '\r\n').encode())
+            time.sleep(0.3)
+        return True
+    except Exception:
+        return False
+
+
 def read_params():
     with open(SCRIPT) as f:
         content = f.read()
@@ -300,15 +321,15 @@ def levels():
 
 @app.route('/apply', methods=['POST'])
 def apply():
-    write_params(
-        attack=request.form['attack'],
-        release=request.form['release'],
-        offset_gain=request.form['offset_gain'],
-        makeup_gain=request.form['makeup_gain'],
-        stereo_mode=request.form['stereo_mode'],
-        function=request.form['function'],
-    )
-    subprocess.run(['sudo', 'systemctl', 'restart', 'airplay-dsp'])
+    attack      = request.form['attack']
+    release     = request.form['release']
+    offset_gain = request.form['offset_gain']
+    makeup_gain = request.form['makeup_gain']
+    stereo_mode = request.form['stereo_mode']
+    function    = request.form['function']
+    write_params(attack, release, offset_gain, makeup_gain, stereo_mode, function)
+    if not _iam_set_params(attack, release, offset_gain, makeup_gain, stereo_mode, function):
+        subprocess.run(['sudo', 'systemctl', 'restart', 'airplay-dsp'])
     return redirect(url_for('index'))
 
 

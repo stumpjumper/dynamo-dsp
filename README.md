@@ -22,7 +22,7 @@ and monitoring levels in real time.
   - 60-minute sleep timer that stops radio and DSP automatically
   - Real-time L/R VU meters (works with both AirPlay and radio)
   - Gain-change display inspired by the dbx 3BX front panel
-  - Live TAP Dynamics parameter tuning (Attack, Release, Transition Level, Makeup Gain)
+  - Live TAP Dynamics parameter tuning — changes apply instantly with no audio dropout
   - Editable station list — add/remove streams without touching config files
 
 ---
@@ -50,12 +50,19 @@ iPhone / Mac (AirPlay 2)        Internet radio (ffmpeg)
       (3.5mm jack)                     │
               │                   hw:2,1,1  (Python RMS → SSE → browser meters)
       amplifier / speakers
+
+         ecasound IAM (TCP 2868) ←── Flask /apply
+         (live parameter updates, no dropout)
 ```
 
 The ALSA loopback (snd-aloop) acts as a virtual patch cable. shairport-sync and ffmpeg
 both write to it; ecasound reads from it, applies the expander, and writes to the
 headphone output. A second loopback subdevice is used as a monitor tap so Python can
 compute RMS levels for the browser meters without interfering with ecasound.
+
+ecasound runs with `--server`, which opens an Interactive Audio Mode (IAM) control
+socket on TCP port 2868 (localhost only). The Flask app connects to it when you click
+"Apply" to update TAP Dynamics parameters live without restarting the audio chain.
 
 ---
 
@@ -250,8 +257,9 @@ After this the UI is reachable at both:
 ### Adjusting the DSP parameters
 
 TAP Dynamics parameters live in `airplay_dsp.sh` and are read/written by the web UI.
-Changes made in the UI are applied immediately when you click "Apply & Restart"
-(brief ~0.5 sec audio dropout).
+Changes made in the UI are applied instantly via ecasound's IAM protocol when you
+click "Apply" — no audio dropout. Parameters are also written to `airplay_dsp.sh`
+so they persist across service restarts.
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
@@ -311,11 +319,12 @@ When a radio station starts, a 60-minute countdown appears. When it expires,
 the stream **and** the DSP stop automatically. The ↺ Reset button restarts the
 countdown. Manually stopping the stream clears the timer.
 
-### Requires "Apply & Restart" (~0.5 sec dropout)
+### TAP Dynamics (live, no dropout)
 
 All TAP Dynamics sliders (Attack, Release, Transition Level, Makeup Gain) and the
-Stereo Mode / Function dropdowns require writing `airplay_dsp.sh` and restarting
-the `airplay-dsp` service.
+Stereo Mode / Function dropdowns apply instantly via ecasound's IAM protocol. No
+restart, no audio gap. Parameters are also saved to `airplay_dsp.sh` so they
+survive a reboot.
 
 ### Level meters
 
@@ -356,9 +365,10 @@ ones. The center point tracks the Transition Level parameter.
 - Check `sudo systemctl status airplay-dsp`
 - Verify the loopback card number matches in `app.py` and `airplay_dsp.sh`
 
-**"Apply & Restart" has no effect**
-- Check the user running `dsp-ui.service` has sudo access to `systemctl restart airplay-dsp`
-- Verify `/etc/sudoers.d/dynamo-dsp` is installed correctly: `sudo visudo -c`
+**"Apply" has no effect**
+- Check that `airplay-dsp` is running — IAM requires ecasound to be active: `sudo systemctl status airplay-dsp`
+- If ecasound is running but Apply does nothing, verify it started with `--server` by checking `ps aux | grep ecasound`
+- If the service is stopped, Apply falls back to `systemctl restart airplay-dsp` — check sudo access: `sudo visudo -c`
 
 **Web UI not reachable**
 - Check `sudo systemctl status dsp-ui`

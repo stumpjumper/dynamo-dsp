@@ -14,7 +14,7 @@
 
 OUTPUT="${1:-hw:Headphones}"
 
-exec ecasound -q -sr:44100 -b:2048 \
+exec ecasound -q --server -sr:44100 -b:2048 \
   -i:alsa,hw:Loopback,1 \
   -el:tap_dynamics_st,20,300,-10.5,3,0,9 \
   -o:alsa,"$OUTPUT" \
