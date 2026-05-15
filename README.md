@@ -265,7 +265,7 @@ so they persist across service restarts.
 |-----------|---------|-------|
 | Attack | 20 ms | How fast the expander reacts to a loud transient |
 | Release | 300 ms | How long before the expander resets after a transient |
-| Transition Level | −10.5 dB | Threshold around which expansion happens. Equivalent to the Transition Level knob on the dbx 3BX. Start here and adjust while watching the Gain Change meter. |
+| Transition Level | −10.5 dB | Threshold around which expansion happens. Equivalent to the Transition Level knob on the dbx 3BX. Slider is reversed: drag **right** for a lower threshold (less aggressive, only the quietest passages affected); drag **left** for a higher threshold (more aggressive). Watch the Gain Change meter while adjusting. |
 | Makeup Gain | 3 dB | Compensate average level after expansion |
 | Stereo Mode | 0 (linked) | 0 = both channels track together, 1 = L only, 2 = R only |
 | Function | 9 (1:3) | Expansion ratio: 8 = 1:2 gentle, 9 = 1:3 medium, 10 = 1:4 aggressive |
@@ -369,6 +369,14 @@ ones. The center point tracks the Transition Level parameter.
 - Check that `airplay-dsp` is running — IAM requires ecasound to be active: `sudo systemctl status airplay-dsp`
 - If ecasound is running but Apply does nothing, verify it started with `--server` by checking `ps aux | grep ecasound`
 - If the service is stopped, Apply falls back to `systemctl restart airplay-dsp` — check sudo access: `sudo visudo -c`
+
+**Internal Server Error on the main page**
+- Usually means `app.py` can't find `airplay_dsp.sh`. By default it looks in the same directory as `app.py`.
+- If your install has the script in a different location, set the env var in the service:
+  ```
+  Environment=AIRPLAY_DSP_SCRIPT=/path/to/airplay_dsp.sh
+  ```
+  Add this line to `[Service]` in `/etc/systemd/system/dsp-ui.service`, then `sudo systemctl daemon-reload && sudo systemctl restart dsp-ui`.
 
 **Web UI not reachable**
 - Check `sudo systemctl status dsp-ui`
