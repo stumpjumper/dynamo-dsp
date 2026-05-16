@@ -94,7 +94,7 @@ def audio_monitor():
         try:
             if inp is None:
                 inp = alsaaudio.PCM(alsaaudio.PCM_CAPTURE, alsaaudio.PCM_NONBLOCK,
-                                    device='hw:2,1,1')
+                                    device='hw:Loopback,1,1')
                 inp.setchannels(2)
                 inp.setrate(44100)
                 inp.setformat(alsaaudio.PCM_FORMAT_S16_LE)

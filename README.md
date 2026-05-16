@@ -272,12 +272,15 @@ so they persist across service restarts.
 
 ### ALSA card numbers
 
-If the loopback is not card 2 on your system, update these two references:
+`airplay_dsp.sh` and `app.py` use named ALSA references (`hw:Loopback,x,x`) so they
+are not sensitive to the loopback card's numeric index. If you ever see ecasound
+crashing with `INVALIDARGUMENT`, check `aplay -l` to confirm the Loopback card is
+present, and check `cat /proc/asound/cards` to verify `snd-aloop` loaded.
 
-- `app.py`: `device='hw:2,1,1'` in `audio_monitor()`
-- `airplay_dsp.sh`: `-o:alsa,hw:2,0,1`
-
-Use `cat /proc/asound/cards` to find the correct card number.
+To pin the loopback to a fixed index (prevents card order from shifting on reboot):
+```bash
+echo "options snd-aloop index=0" | sudo tee /etc/modprobe.d/snd-aloop.conf
+```
 
 ### Output device
 
