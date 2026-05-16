@@ -11,11 +11,19 @@
 #
 # Output device: hw:Headphones = 3.5mm jack
 #                hw:vc4hdmi    = HDMI
+#
+# snd-aloop topology (card 0, pinned via /etc/modprobe.d/snd-aloop.conf):
+#   Sources (shairport-sync, ffmpeg) write to hw:Loopback,1 (device 1 playback = pcm1p)
+#   snd-aloop crosses:  pcm1p/subN  <->  pcm0c/subN
+#   ecasound always opens pcm0c/sub0 (device 0 capture) regardless of device spec
+#   ecasound monitor tap writes to pcm0p/sub0
+#   snd-aloop crosses:  pcm0p/subN  <->  pcm1c/subN
+#   Python VU meter reads pcm1c/sub0 via hw:0,1,0
 
 OUTPUT="${1:-hw:Headphones}"
 
 exec ecasound -q --server -sr:44100 -b:2048 \
-  -i:alsa,hw:Loopback,1 \
+  -i:alsa,hw:Loopback,0 \
   -el:tap_dynamics_st,20,300,-10.5,3,0,9 \
   -o:alsa,"$OUTPUT" \
   -o:alsa,hw:Loopback,0,1

@@ -36,9 +36,10 @@ iPhone / Mac (AirPlay 2)        Internet radio (ffmpeg)
         │                                │
         └──────────────┬─────────────────┘
                        ▼
-               ALSA Loopback in  (hw:Loopback,0 — card 2, device 0)
-                       │
-               ALSA Loopback out (hw:Loopback,1 — card 2, device 1)
+          hw:Loopback,1  (device 1 playback = pcm1p)
+                       │   snd-aloop crosses: pcm1p → pcm0c
+                       ▼
+          hw:Loopback,0  (device 0 capture = pcm0c)  ← ecasound reads here
                        │
                    ecasound
                        │
@@ -46,9 +47,9 @@ iPhone / Mac (AirPlay 2)        Internet radio (ffmpeg)
                        │
               ┌─────────────────────────┐
               │                         │
-       hw:Headphones              hw:2,0,1  (monitor tap)
-      (3.5mm jack)                     │
-              │                   hw:2,1,1  (Python RMS → SSE → browser meters)
+       hw:Headphones        hw:Loopback,0,1  (monitor tap → pcm0p/sub0)
+      (3.5mm jack)                     │   snd-aloop crosses: pcm0p → pcm1c
+              │                   hw:0,1,0  (pcm1c/sub0 → Python RMS → SSE → browser meters)
       amplifier / speakers
 
          ecasound IAM (TCP 2868) ←── Flask /apply
@@ -56,9 +57,15 @@ iPhone / Mac (AirPlay 2)        Internet radio (ffmpeg)
 ```
 
 The ALSA loopback (snd-aloop) acts as a virtual patch cable. shairport-sync and ffmpeg
-both write to it; ecasound reads from it, applies the expander, and writes to the
-headphone output. A second loopback subdevice is used as a monitor tap so Python can
-compute RMS levels for the browser meters without interfering with ecasound.
+write to **device 1 playback** (pcm1p); snd-aloop crosses this to **device 0 capture**
+(pcm0c), where ecasound reads it, applies the expander, and writes to the headphone
+output. A monitor tap on device 0 playback (pcm0p) crosses back to device 1 capture
+(pcm1c), where Python reads it to compute RMS levels for the browser VU meters.
+
+> **Note on ecasound ALSA behavior:** ecasound's ALSA plugin always opens device 0
+> capture (pcm0c) as its input regardless of the device number in the `-i:alsa,hw:`
+> string. Sources must therefore write to device 1 (pcm1p) so the loopback crossing
+> delivers audio to pcm0c.
 
 ecasound runs with `--server`, which opens an Interactive Audio Mode (IAM) control
 socket on TCP port 2868 (localhost only). The Flask app connects to it when you click
@@ -148,16 +155,16 @@ your system assigns a different number):
 
 ```bash
 cat /proc/asound/cards
-# Expected:  2 [Loopback]: Loopback - Loopback
+# Expected:  0 [Loopback]: Loopback - Loopback
 ```
 
 ### 2. Configure shairport-sync output
 
-Edit `/etc/shairport-sync.conf` and set the ALSA output to the loopback:
+Edit `/etc/shairport-sync.conf` and set the ALSA output to **device 1** of the loopback:
 
 ```
 alsa = {
-  output_device = "hw:Loopback,0";
+  output_device = "hw:Loopback,1";
   mixer_control_name = "";
 };
 ```
@@ -272,15 +279,21 @@ so they persist across service restarts.
 
 ### ALSA card numbers
 
-`airplay_dsp.sh` and `app.py` use named ALSA references (`hw:Loopback,x,x`) so they
+`airplay_dsp.sh` and `app.py` use named ALSA references (`hw:Loopback,x`) so they
 are not sensitive to the loopback card's numeric index. If you ever see ecasound
 crashing with `INVALIDARGUMENT`, check `aplay -l` to confirm the Loopback card is
 present, and check `cat /proc/asound/cards` to verify `snd-aloop` loaded.
 
-To pin the loopback to a fixed index (prevents card order from shifting on reboot):
+Pin the loopback to a fixed index so card numbering is stable across reboots (highly
+recommended — plugging/unplugging HDMI or adding other audio hardware can shift indices):
 ```bash
 echo "options snd-aloop index=0" | sudo tee /etc/modprobe.d/snd-aloop.conf
 ```
+
+The VU meter (`app.py`) uses the numeric reference `hw:0,1,0` rather than the named
+form because Python's `alsaaudio` library requires an explicit card number for the
+three-part `hw:CARD,DEV,SUBDEV` format. If your loopback is not at index 0, update
+`audio_monitor()` in `app.py` to match.
 
 ### Output device
 
@@ -356,17 +369,18 @@ ones. The center point tracks the Transition Level parameter.
 
 **No audio from AirPlay**
 - Check `sudo systemctl status shairport-sync nqptp`
-- Verify shairport-sync output is `hw:Loopback,0` in `/etc/shairport-sync.conf`
+- Verify shairport-sync output is `hw:Loopback,1` in `/etc/shairport-sync.conf`
 - Verify `airplay-dsp` is running: `sudo systemctl status airplay-dsp`
 
 **No audio from radio**
 - Check `sudo systemctl status dsp-ui` — look for ffmpeg errors
-- Test ffmpeg manually: `ffmpeg -i STREAM_URL -f alsa hw:Loopback,0`
+- Test ffmpeg manually: `ffmpeg -i STREAM_URL -f alsa hw:Loopback,1`
 
 **VU meters always dark**
-- The loopback monitor tap (`hw:2,0,1`) is only written by ecasound when it's running
-- Check `sudo systemctl status airplay-dsp`
-- Verify the loopback card number matches in `app.py` and `airplay_dsp.sh`
+- The monitor tap (ecasound → `hw:Loopback,0,1` → `hw:0,1,0` Python) is only active
+  when ecasound is running — check `sudo systemctl status airplay-dsp`
+- Verify the loopback is at card index 0: `cat /proc/asound/cards`
+- If the loopback is at a different index, update `audio_monitor()` in `app.py`
 
 **"Apply" has no effect**
 - Check that `airplay-dsp` is running — IAM requires ecasound to be active: `sudo systemctl status airplay-dsp`

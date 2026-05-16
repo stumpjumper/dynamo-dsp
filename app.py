@@ -94,7 +94,7 @@ def audio_monitor():
         try:
             if inp is None:
                 inp = alsaaudio.PCM(alsaaudio.PCM_CAPTURE, alsaaudio.PCM_NONBLOCK,
-                                    device='hw:Loopback,1,1')
+                                    device='hw:0,1,0')
                 inp.setchannels(2)
                 inp.setrate(44100)
                 inp.setformat(alsaaudio.PCM_FORMAT_S16_LE)
@@ -241,7 +241,7 @@ def stream_start(key):
     proc = subprocess.Popen(
         ['ffmpeg', '-reconnect', '1', '-reconnect_streamed', '1',
          '-reconnect_delay_max', '5', '-i', url,
-         '-f', 'alsa', 'hw:Loopback,0'],
+         '-f', 'alsa', 'hw:Loopback,1'],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     with open(pid_file(key), 'w') as f:
